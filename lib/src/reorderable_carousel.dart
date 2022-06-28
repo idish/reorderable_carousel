@@ -62,6 +62,8 @@ class ReorderableCarousel extends StatefulWidget {
   /// Animation Curve used for scrolling to the next selected item.
   final Curve scrollToCurve;
 
+  final ReorderCarouselController _controller;
+
   /// Creates a new [ReorderableCarousel]
   ReorderableCarousel({
     required this.numItems,
@@ -74,13 +76,15 @@ class ReorderableCarousel extends StatefulWidget {
     this.draggedItemBuilder,
     this.scrollToDuration = const Duration(milliseconds: 350),
     this.scrollToCurve = Curves.linear,
+    ReorderCarouselController? controller,
     Key? key,
   })  : assert(numItems >= 1, "You need at least one item"),
         assert(itemWidthFraction >= 1),
+        _controller = controller != null ? controller : ReorderCarouselController(),
         super(key: key);
 
   @override
-  _ReorderableCarouselState createState() => _ReorderableCarouselState();
+  _ReorderableCarouselState createState() => _ReorderableCarouselState(_controller);
 }
 
 class _ReorderableCarouselState extends State<ReorderableCarousel> {
@@ -91,16 +95,20 @@ class _ReorderableCarouselState extends State<ReorderableCarousel> {
   double _endingOffset = 0;
 
   // includes padding around icon button
-  final double _iconSize = 24 + 16.0;
-  late ScrollController _controller;
+  final double _iconSize = 24 + 8.0;
+  final ReorderCarouselController _controller;
+  // late ScrollController _controller;
   int _selectedIdx = 0;
 
   final double _padding = 8.0;
 
+  _ReorderableCarouselState(this._controller);
+
+
   @override
   void initState() {
     super.initState();
-    _controller = ScrollController();
+    _controller.setData(_itemMaxWidth, _iconSize, widget.scrollToDuration, widget.scrollToCurve);
   }
 
   @override
@@ -119,9 +127,10 @@ class _ReorderableCarouselState extends State<ReorderableCarousel> {
           _startingOffset = (constraints.maxWidth / 2) - (_itemMaxWidth / 2);
           _endingOffset = max(0, _startingOffset - _iconSize);
 
+          _controller.setData(_itemMaxWidth, _iconSize, widget.scrollToDuration, widget.scrollToCurve);
           // whenever the size of this widget changes, we'll rescroll to center
           // the selected item.
-          _scrollToBox(_selectedIdx);
+          _controller.scrollToBox(_selectedIdx);
         }
 
         var children = [
@@ -131,7 +140,7 @@ class _ReorderableCarouselState extends State<ReorderableCarousel> {
           for (int i = 0; i < widget.numItems; i++)
             GestureDetector(
               onTap: () {
-                _scrollToBox(i);
+                _controller.scrollToBox(i);
               },
               child: ConstrainedBox(
                 constraints: BoxConstraints.tightFor(width: _itemMaxWidth),
@@ -148,7 +157,7 @@ class _ReorderableCarouselState extends State<ReorderableCarousel> {
           // alleviates a problem where scrolling would get broken if
           // a page changed a position by more than ~4.
           cacheExtent: (_itemMaxWidth + _iconSize) * widget.numItems,
-          controller: _controller,
+          controller: _controller.scroll_controller,
           scrollDirection: Axis.horizontal,
           onReorder: (oldIndex, newIndex) {
             // compensate for the leading space
@@ -171,7 +180,7 @@ class _ReorderableCarouselState extends State<ReorderableCarousel> {
 
               _updateSelectedIndex(newIndex);
 
-              _scrollToBox(newIndex);
+              _controller.scrollToBox(newIndex);
             });
           },
           itemCount: children.length,
@@ -280,7 +289,7 @@ class _ReorderableCarouselState extends State<ReorderableCarousel> {
               setState(() {
                 _updateSelectedIndex(index);
 
-                _scrollToBox(index);
+                _controller.scrollToBox(index);
               });
             }
           },
@@ -300,10 +309,32 @@ class _ReorderableCarouselState extends State<ReorderableCarousel> {
     });
   }
 
-  void _scrollToBox(int index) {
-    WidgetsBinding.instance?.addPostFrameCallback((_) {
-      _controller.animateTo(((_itemMaxWidth + _iconSize) * index),
-          duration: widget.scrollToDuration, curve: widget.scrollToCurve);
+
+}
+
+class ReorderCarouselController {
+
+  ScrollController scroll_controller = ScrollController();
+  late double _itemMaxWidth;
+  late double _iconSize;
+  late Duration _scrollToDuration;
+  late Curve _scrollToCurve;
+
+  void setData(double itemMaxWidth, double iconSize, Duration scrollToDuration, Curve scrollToCurve) {
+    _itemMaxWidth = itemMaxWidth;
+    _iconSize = iconSize;
+    _scrollToDuration = scrollToDuration;
+    _scrollToCurve = scrollToCurve;
+  }
+
+  void dispose() {
+    scroll_controller.dispose();
+  }
+
+  void scrollToBox(int index) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      scroll_controller.animateTo(((_itemMaxWidth + _iconSize) * index),
+          duration: _scrollToDuration, curve: _scrollToCurve);
     });
   }
 }
