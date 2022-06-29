@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:core';
 import 'dart:math';
 
 import 'package:flutter/gestures.dart';
@@ -80,11 +81,13 @@ class ReorderableCarousel extends StatefulWidget {
     Key? key,
   })  : assert(numItems >= 1, "You need at least one item"),
         assert(itemWidthFraction >= 1),
-        _controller = controller != null ? controller : ReorderCarouselController(),
+        _controller =
+            controller != null ? controller : ReorderCarouselController(),
         super(key: key);
 
   @override
-  _ReorderableCarouselState createState() => _ReorderableCarouselState(_controller);
+  _ReorderableCarouselState createState() =>
+      _ReorderableCarouselState(_controller);
 }
 
 class _ReorderableCarouselState extends State<ReorderableCarousel> {
@@ -97,6 +100,7 @@ class _ReorderableCarouselState extends State<ReorderableCarousel> {
   // includes padding around icon button
   final double _iconSize = 24 + 8.0;
   final ReorderCarouselController _controller;
+
   // late ScrollController _controller;
   int _selectedIdx = 0;
 
@@ -104,18 +108,18 @@ class _ReorderableCarouselState extends State<ReorderableCarousel> {
 
   _ReorderableCarouselState(this._controller);
 
-
   @override
   void initState() {
     super.initState();
-    _controller.setData(_itemMaxWidth, _iconSize, widget.scrollToDuration, widget.scrollToCurve);
+    _controller.setData(_itemMaxWidth, _iconSize, widget.scrollToDuration,
+        widget.scrollToCurve, _updateSelectedIndex);
   }
 
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+  // @override
+  // void dispose() {
+  //   _controller.dispose();
+  //   super.dispose();
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -124,13 +128,14 @@ class _ReorderableCarouselState extends State<ReorderableCarousel> {
         double width = constraints.maxWidth / widget.itemWidthFraction;
         if (width != _itemMaxWidth) {
           _itemMaxWidth = width;
-          _startingOffset = (constraints.maxWidth / 2) - (_itemMaxWidth / 2);
+          _startingOffset = (_itemMaxWidth / 2);
           _endingOffset = max(0, _startingOffset - _iconSize);
 
-          _controller.setData(_itemMaxWidth, _iconSize, widget.scrollToDuration, widget.scrollToCurve);
+          _controller.setData(_itemMaxWidth, _iconSize, widget.scrollToDuration,
+              widget.scrollToCurve, _updateSelectedIndex);
           // whenever the size of this widget changes, we'll rescroll to center
           // the selected item.
-          _controller.scrollToBox(_selectedIdx);
+          _controller.scrollToBox(_selectedIdx, false);
         }
 
         var children = [
@@ -140,7 +145,7 @@ class _ReorderableCarouselState extends State<ReorderableCarousel> {
           for (int i = 0; i < widget.numItems; i++)
             GestureDetector(
               onTap: () {
-                _controller.scrollToBox(i);
+                _controller.scrollToBox(i, false);
               },
               child: ConstrainedBox(
                 constraints: BoxConstraints.tightFor(width: _itemMaxWidth),
@@ -153,6 +158,7 @@ class _ReorderableCarouselState extends State<ReorderableCarousel> {
         ];
 
         return ReorderableList(
+          // physics: BouncingScrollPhysics(),
           // We want all the pages to be cached. This also
           // alleviates a problem where scrolling would get broken if
           // a page changed a position by more than ~4.
@@ -178,9 +184,7 @@ class _ReorderableCarouselState extends State<ReorderableCarousel> {
             setState(() {
               _dragInProgress = false;
 
-              _updateSelectedIndex(newIndex);
-
-              _controller.scrollToBox(newIndex);
+              _controller.scrollToBox(newIndex, false);
             });
           },
           itemCount: children.length,
@@ -277,22 +281,27 @@ class _ReorderableCarouselState extends State<ReorderableCarousel> {
       return AnimatedOpacity(
         opacity: _dragInProgress ? 0.0 : 1.0,
         duration: const Duration(milliseconds: 250),
-        child: IconButton(
-          visualDensity: VisualDensity.compact,
-          icon: Icon(Icons.add),
-          onPressed: () async {
-            bool? itemAdded = await widget.addItemAt(index);
+        child: Container(
+          margin: const EdgeInsets.all(15.0),
+          padding: const EdgeInsets.all(0.0),
+          decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: Color.fromRGBO(0, 0, 0, 120))),
+          child: IconButton(
+            visualDensity: VisualDensity.compact,
+            icon: Icon(Icons.add),
+            onPressed: () async {
+              bool? itemAdded = await widget.addItemAt(index);
 
-            // if an item was added, or the callback didn't specify, then update
-            // the selected index.
-            if (itemAdded == null || itemAdded) {
-              setState(() {
-                _updateSelectedIndex(index);
-
-                _controller.scrollToBox(index);
-              });
-            }
-          },
+              // if an item was added, or the callback didn't specify, then update
+              // the selected index.
+              if (itemAdded == null || itemAdded) {
+                setState(() {
+                  _controller.scrollToBox(index, true);
+                });
+              }
+            },
+          ),
         ),
       );
     } else {
@@ -308,30 +317,30 @@ class _ReorderableCarouselState extends State<ReorderableCarousel> {
       _selectedIdx = index;
     });
   }
-
-
 }
 
 class ReorderCarouselController {
-
   ScrollController scroll_controller = ScrollController();
   late double _itemMaxWidth;
   late double _iconSize;
   late Duration _scrollToDuration;
   late Curve _scrollToCurve;
+  late Function(int) updateSelectedIndexCallback;
 
-  void setData(double itemMaxWidth, double iconSize, Duration scrollToDuration, Curve scrollToCurve) {
+  void setData(double itemMaxWidth, double iconSize, Duration scrollToDuration,
+      Curve scrollToCurve, Function(int) updateIndexFunc) {
     _itemMaxWidth = itemMaxWidth;
     _iconSize = iconSize;
     _scrollToDuration = scrollToDuration;
     _scrollToCurve = scrollToCurve;
+    updateSelectedIndexCallback = updateIndexFunc;
   }
 
-  void dispose() {
-    scroll_controller.dispose();
-  }
+  void scrollToBox(int index, [bool shouldUpdateSelectedIndex=true]) {
+    if (shouldUpdateSelectedIndex) {
+      updateSelectedIndexCallback(index);
+    }
 
-  void scrollToBox(int index) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       scroll_controller.animateTo(((_itemMaxWidth + _iconSize) * index),
           duration: _scrollToDuration, curve: _scrollToCurve);
