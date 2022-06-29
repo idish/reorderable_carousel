@@ -184,7 +184,7 @@ class _ReorderableCarouselState extends State<ReorderableCarousel> {
             setState(() {
               _dragInProgress = false;
 
-              _controller.scrollToBox(newIndex, false);
+              _controller.scrollToBox(newIndex, true);
             });
           },
           itemCount: children.length,
