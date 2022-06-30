@@ -98,7 +98,7 @@ class _ReorderableCarouselState extends State<ReorderableCarousel> {
   double _endingOffset = 0;
 
   // includes padding around icon button
-  final double _iconSize = 24 + 8.0;
+  final double _iconSize = 24 + 15.0;
   final ReorderCarouselController _controller;
 
   // late ScrollController _controller;
@@ -129,7 +129,7 @@ class _ReorderableCarouselState extends State<ReorderableCarousel> {
         if (width != _itemMaxWidth) {
           _itemMaxWidth = width;
           _startingOffset = (_itemMaxWidth / 2);
-          _endingOffset = max(0, _startingOffset - _iconSize);
+          // _endingOffset = max(0, _itemMaxWidth * 10 + _startingOffset - _iconSize);
 
           _controller.setData(_itemMaxWidth, _iconSize, widget.scrollToDuration,
               widget.scrollToCurve, _updateSelectedIndex);
@@ -158,7 +158,7 @@ class _ReorderableCarouselState extends State<ReorderableCarousel> {
         ];
 
         return ReorderableList(
-          // physics: BouncingScrollPhysics(),
+          physics: BouncingScrollPhysics(),
           // We want all the pages to be cached. This also
           // alleviates a problem where scrolling would get broken if
           // a page changed a position by more than ~4.
@@ -225,7 +225,7 @@ class _ReorderableCarouselState extends State<ReorderableCarousel> {
                 ),
 
                 // no plus icons for the invisible boxes
-                if (i != 0 && i != children.length - 1) _buildAddItemIcon(i),
+                if (i == children.length - 1) _buildAddItemIcon(i),
               ],
             );
           },
@@ -281,32 +281,31 @@ class _ReorderableCarouselState extends State<ReorderableCarousel> {
       return AnimatedOpacity(
         opacity: _dragInProgress ? 0.0 : 1.0,
         duration: const Duration(milliseconds: 250),
-        child: Container(
-          margin: const EdgeInsets.all(15.0),
-          padding: const EdgeInsets.all(0.0),
-          decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: Color.fromRGBO(0, 0, 0, 120))),
-          child: IconButton(
-            visualDensity: VisualDensity.compact,
-            icon: Icon(Icons.add),
-            onPressed: () async {
-              bool? itemAdded = await widget.addItemAt(index);
+        child: InkWell(
+          onTap: () async {
+            bool? itemAdded = await widget.addItemAt(index);
 
-              // if an item was added, or the callback didn't specify, then update
-              // the selected index.
-              if (itemAdded == null || itemAdded) {
-                setState(() {
-                  _controller.scrollToBox(index, true);
-                });
-              }
-            },
+            // if an item was added, or the callback didn't specify, then update
+            // the selected index.
+            if (itemAdded == null || itemAdded) {
+              setState(() {
+                _controller.scrollToBox(index, true);
+              });
+            }
+          },
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 15.0),
+            padding: const EdgeInsets.all(3.0),
+            decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: Color.fromRGBO(0, 0, 0, 120))),
+            child: Icon(Icons.add),
           ),
         ),
       );
     } else {
       return SizedBox(
-        width: _iconSize,
+        width: 4,
       );
     }
   }
@@ -342,7 +341,7 @@ class ReorderCarouselController {
     }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      scroll_controller.animateTo(((_itemMaxWidth + _iconSize) * index),
+      scroll_controller.animateTo(((_itemMaxWidth + 60) * index),
           duration: _scrollToDuration, curve: _scrollToCurve);
     });
   }
