@@ -106,13 +106,15 @@ class _ReorderableCarouselState extends State<ReorderableCarousel> {
 
   final double _padding = 8.0;
 
+  final dataKeys = new List<GlobalKey>.generate(10, (index) => GlobalKey());
+
   _ReorderableCarouselState(this._controller);
 
   @override
   void initState() {
     super.initState();
     _controller.setData(_itemMaxWidth, _iconSize, widget.scrollToDuration,
-        widget.scrollToCurve, _updateSelectedIndex);
+        widget.scrollToCurve, _updateSelectedIndex, dataKeys);
   }
 
   // @override
@@ -128,11 +130,11 @@ class _ReorderableCarouselState extends State<ReorderableCarousel> {
         double width = constraints.maxWidth / widget.itemWidthFraction;
         if (width != _itemMaxWidth) {
           _itemMaxWidth = width;
-          _startingOffset = (_itemMaxWidth / 2);
-          // _endingOffset = max(0, _itemMaxWidth * 10 + _startingOffset - _iconSize);
+          // _startingOffset = (_itemMaxWidth / 2);
+          // _endingOffset = max(0, _startingOffset - _iconSize);
 
           _controller.setData(_itemMaxWidth, _iconSize, widget.scrollToDuration,
-              widget.scrollToCurve, _updateSelectedIndex);
+              widget.scrollToCurve, _updateSelectedIndex, dataKeys);
           // whenever the size of this widget changes, we'll rescroll to center
           // the selected item.
           _controller.scrollToBox(_selectedIdx, false);
@@ -147,9 +149,13 @@ class _ReorderableCarouselState extends State<ReorderableCarousel> {
               onTap: () {
                 _controller.scrollToBox(i, false);
               },
-              child: ConstrainedBox(
-                constraints: BoxConstraints.tightFor(width: _itemMaxWidth),
-                child: widget.itemBuilder(_itemMaxWidth, i, i == _selectedIdx),
+              child: Container(
+                key: dataKeys[i],
+                margin: EdgeInsets.symmetric(horizontal: 8),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints.tightFor(width: _itemMaxWidth, height: _itemMaxWidth),
+                  child: widget.itemBuilder(_itemMaxWidth, i, i == _selectedIdx),
+                ),
               ),
             ),
           SizedBox(
@@ -157,117 +163,120 @@ class _ReorderableCarouselState extends State<ReorderableCarousel> {
           ),
         ];
 
-        return ReorderableList(
-          physics: BouncingScrollPhysics(),
-          // We want all the pages to be cached. This also
-          // alleviates a problem where scrolling would get broken if
-          // a page changed a position by more than ~4.
-          cacheExtent: (_itemMaxWidth + _iconSize) * widget.numItems,
-          controller: _controller.scroll_controller,
-          scrollDirection: Axis.horizontal,
-          onReorder: (oldIndex, newIndex) {
-            // compensate for the leading space
-            oldIndex--;
-            newIndex--;
-            if (newIndex > oldIndex) {
+        return SizedBox(
+          height: _itemMaxWidth,
+          child: ReorderableList(
+            physics: BouncingScrollPhysics(),
+            // We want all the pages to be cached. This also
+            // alleviates a problem where scrolling would get broken if
+            // a page changed a position by more than ~4.
+            cacheExtent: (_itemMaxWidth + _iconSize) * widget.numItems,
+            controller: _controller.scroll_controller,
+            scrollDirection: Axis.horizontal,
+            onReorder: (oldIndex, newIndex) {
+              // compensate for the leading space
+              oldIndex--;
               newIndex--;
-            }
+              if (newIndex > oldIndex) {
+                newIndex--;
+              }
 
-            // clamp, in the event that the reorder involves the
-            // leading spaces. Removing 1 to accommodate the fact that the item
-            // will be removed as part of reordering.
-            newIndex = newIndex.clamp(0, widget.numItems - 1);
-            widget.onReorder(oldIndex, newIndex);
+              // clamp, in the event that the reorder involves the
+              // leading spaces. Removing 1 to accommodate the fact that the item
+              // will be removed as part of reordering.
+              newIndex = newIndex.clamp(0, widget.numItems - 1);
+              widget.onReorder(oldIndex, newIndex);
 
-            // Color swap = colors.removeAt(oldIndex);
-            // colors.insert(newIndex, swap);
-            setState(() {
-              _dragInProgress = false;
+              // Color swap = colors.removeAt(oldIndex);
+              // colors.insert(newIndex, swap);
+              setState(() {
+                _dragInProgress = false;
 
-              _controller.scrollToBox(newIndex, true);
-            });
-          },
-          itemCount: children.length,
-          itemBuilder: (context, i) {
-            return Row(
-              key: ValueKey(i),
-              children: [
-                Listener(
-                  behavior: HitTestBehavior.opaque,
-                  onPointerDown: (event) {
-                    _updateSelectedIndex(i - 1);
+                _controller.scrollToBox(newIndex, true);
+              });
+            },
+            itemCount: children.length,
+            itemBuilder: (context, i) {
+              return Row(
+                key: ValueKey(i),
+                children: [
+                  Listener(
+                    behavior: HitTestBehavior.opaque,
+                    onPointerDown: (event) {
+                      _updateSelectedIndex(i - 1);
 
-                    final list = SliverReorderableList.maybeOf(context);
+                      final list = SliverReorderableList.maybeOf(context);
 
-                    list?.startItemDragReorder(
-                      index: i,
-                      event: event,
-                      recognizer:
-                          DelayedMultiDragGestureRecognizer(debugOwner: this),
-                    );
-                    _PointerSmuggler(debugOwner: this)
-                      ..onStart = ((d) {
-                        // the wait time has passed and the drag has
-                        // started
-                        setState(() {
-                          _dragInProgress = true;
-                        });
-                        return;
-                      })
-                      ..addPointer(event);
-                  },
-                  onPointerUp: (e) {
-                    setState(() {
-                      _dragInProgress = false;
-                    });
-                  },
-                  child: children[i],
-                ),
+                      list?.startItemDragReorder(
+                        index: i,
+                        event: event,
+                        recognizer:
+                            DelayedMultiDragGestureRecognizer(debugOwner: this),
+                      );
+                      _PointerSmuggler(debugOwner: this)
+                        ..onStart = ((d) {
+                          // the wait time has passed and the drag has
+                          // started
+                          setState(() {
+                            _dragInProgress = true;
+                          });
+                          return;
+                        })
+                        ..addPointer(event);
+                    },
+                    onPointerUp: (e) {
+                      setState(() {
+                        _dragInProgress = false;
+                      });
+                    },
+                    child: children[i],
+                  ),
 
-                // no plus icons for the invisible boxes
-                if (i == children.length - 1) _buildAddItemIcon(i),
-              ],
-            );
-          },
-          proxyDecorator: (child, index, animation) {
-            // move and scale the dragged item
-            var align = AlignmentTween(
-              begin: Alignment.centerLeft,
-              end: Alignment.center,
-            ).animate(animation);
-            var size = Tween(
-              begin: 1.0,
-              end: 1.1,
-            ).animate(animation);
-
-            Widget item;
-
-            // If there is a builder for dragged items, use it. Otherwise just
-            // use the regular item builder.
-            if (widget.draggedItemBuilder != null) {
-              item = widget.draggedItemBuilder!(
-                _itemMaxWidth,
-                index - 1,
+                  // no plus icons for the invisible boxes
+                  if (i == children.length - 2) _buildAddItemIcon(i),
+                ],
               );
-            } else {
-              item = widget.itemBuilder(
-                _itemMaxWidth,
-                index - 1,
-                true,
-              );
-            }
+            },
+            proxyDecorator: (child, index, animation) {
+              // move and scale the dragged item
+              var align = AlignmentTween(
+                begin: Alignment.centerLeft,
+                end: Alignment.center,
+              ).animate(animation);
+              var size = Tween(
+                begin: 1.0,
+                end: 1.1,
+              ).animate(animation);
 
-            return AlignTransition(
-              alignment: align,
-              child: ScaleTransition(
-                scale: size,
-                child: Material(
-                  elevation: 4,
-                  child: item,
+              Widget item;
+
+              // If there is a builder for dragged items, use it. Otherwise just
+              // use the regular item builder.
+              if (widget.draggedItemBuilder != null) {
+                item = widget.draggedItemBuilder!(
+                  _itemMaxWidth,
+                  index - 1,
+                );
+              } else {
+                item = widget.itemBuilder(
+                  _itemMaxWidth,
+                  index - 1,
+                  true,
+                );
+              }
+
+              return AlignTransition(
+                alignment: align,
+                child: ScaleTransition(
+                  scale: size,
+                  child: Material(
+                    elevation: 4,
+                    child: item,
+                  ),
                 ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         );
       },
     );
@@ -325,14 +334,16 @@ class ReorderCarouselController {
   late Duration _scrollToDuration;
   late Curve _scrollToCurve;
   late Function(int) updateSelectedIndexCallback;
+  late List<GlobalKey> dataKeys;
 
   void setData(double itemMaxWidth, double iconSize, Duration scrollToDuration,
-      Curve scrollToCurve, Function(int) updateIndexFunc) {
+      Curve scrollToCurve, Function(int) updateIndexFunc, final List<GlobalKey> dataKeys) {
     _itemMaxWidth = itemMaxWidth;
     _iconSize = iconSize;
     _scrollToDuration = scrollToDuration;
     _scrollToCurve = scrollToCurve;
     updateSelectedIndexCallback = updateIndexFunc;
+    this.dataKeys = dataKeys;
   }
 
   void scrollToBox(int index, [bool shouldUpdateSelectedIndex=true]) {
@@ -341,8 +352,9 @@ class ReorderCarouselController {
     }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      scroll_controller.animateTo(((_itemMaxWidth + 60) * index),
-          duration: _scrollToDuration, curve: _scrollToCurve);
+      Scrollable.ensureVisible(dataKeys[index].currentContext!, alignment: 0.5, duration: _scrollToDuration, curve: _scrollToCurve);
+    //   scroll_controller.animateTo(((_itemMaxWidth + 60) * index),
+    //       duration: _scrollToDuration, curve: _scrollToCurve);
     });
   }
 }
