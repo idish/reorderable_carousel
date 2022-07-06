@@ -352,7 +352,8 @@ class ReorderCarouselController {
     }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Scrollable.ensureVisible(dataKeys[index].currentContext!, alignment: 0.5, duration: _scrollToDuration, curve: _scrollToCurve);
+      // scroll_controller.animateTo(index * 60, duration: _scrollToDuration, curve: _scrollToCurve);
+      scroll_controller.position.ensureVisible(dataKeys[index].currentContext!.findRenderObject()!, alignment: 0.5, duration: _scrollToDuration, curve: _scrollToCurve);
     });
   }
 }
