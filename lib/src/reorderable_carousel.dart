@@ -145,19 +145,20 @@ class _ReorderableCarouselState extends State<ReorderableCarousel> {
             width: _startingOffset,
           ),
           for (int i = 0; i < widget.numItems; i++)
-            GestureDetector(
-              onTap: () {
-                _controller.scrollToBox(i, false);
-              },
-              child: Container(
-                key: dataKeys[i],
-                margin: EdgeInsets.symmetric(horizontal: 8),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints.tightFor(width: _itemMaxWidth, height: _itemMaxWidth),
-                  child: widget.itemBuilder(_itemMaxWidth, i, i == _selectedIdx),
+              GestureDetector(
+                onTap: () {
+                  _controller.scrollToBox(i, false);
+                },
+                child: Container(
+                  key: dataKeys[i],
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints.tightFor(
+                        width: _itemMaxWidth, height: _itemMaxWidth),
+                    child:
+                        widget.itemBuilder(_itemMaxWidth, i, i == _selectedIdx),
+                  ),
                 ),
               ),
-            ),
           SizedBox(
             width: _endingOffset,
           ),
@@ -232,8 +233,13 @@ class _ReorderableCarouselState extends State<ReorderableCarousel> {
                     child: children[i],
                   ),
 
+                  if (i < children.length - 1)
+                  SizedBox(
+                    width: 16,
+                  ),
+
                   // no plus icons for the invisible boxes
-                  if (i == children.length - 2) _buildAddItemIcon(i),
+                  if (i == children.length - 1) _buildAddItemIcon(i),
                 ],
               );
             },
@@ -245,7 +251,7 @@ class _ReorderableCarouselState extends State<ReorderableCarousel> {
               ).animate(animation);
               var size = Tween(
                 begin: 1.0,
-                end: 1.1,
+                end: 1.5,
               ).animate(animation);
 
               Widget item;
@@ -297,18 +303,17 @@ class _ReorderableCarouselState extends State<ReorderableCarousel> {
             // if an item was added, or the callback didn't specify, then update
             // the selected index.
             if (itemAdded == null || itemAdded) {
-              setState(() {
-                _controller.scrollToBox(index, true);
-              });
+              _controller.scrollToBox(index - 1, true);
             }
           },
           child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 15.0),
             padding: const EdgeInsets.all(3.0),
+            width: _itemMaxWidth,
+            height: _itemMaxWidth,
             decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(color: Color.fromRGBO(0, 0, 0, 120))),
-            child: Icon(Icons.add),
+            child: Icon(Icons.add_rounded, size: _itemMaxWidth / 1.5,),
           ),
         ),
       );
@@ -336,8 +341,13 @@ class ReorderCarouselController {
   late Function(int) updateSelectedIndexCallback;
   late List<GlobalKey> dataKeys;
 
-  void setData(double itemMaxWidth, double iconSize, Duration scrollToDuration,
-      Curve scrollToCurve, Function(int) updateIndexFunc, final List<GlobalKey> dataKeys) {
+  void setData(
+      double itemMaxWidth,
+      double iconSize,
+      Duration scrollToDuration,
+      Curve scrollToCurve,
+      Function(int) updateIndexFunc,
+      final List<GlobalKey> dataKeys) {
     _itemMaxWidth = itemMaxWidth;
     _iconSize = iconSize;
     _scrollToDuration = scrollToDuration;
@@ -346,14 +356,18 @@ class ReorderCarouselController {
     this.dataKeys = dataKeys;
   }
 
-  void scrollToBox(int index, [bool shouldUpdateSelectedIndex=true]) {
+  void scrollToBox(int index, [bool shouldUpdateSelectedIndex = true]) {
     if (shouldUpdateSelectedIndex) {
       updateSelectedIndexCallback(index);
     }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // scroll_controller.animateTo(index * 60, duration: _scrollToDuration, curve: _scrollToCurve);
-      scroll_controller.position.ensureVisible(dataKeys[index].currentContext!.findRenderObject()!, alignment: 0.5, duration: _scrollToDuration, curve: _scrollToCurve);
+      scroll_controller.position.ensureVisible(
+          dataKeys[index].currentContext!.findRenderObject()!,
+          alignment: 0.5,
+          duration: _scrollToDuration,
+          curve: _scrollToCurve);
     });
   }
 }
