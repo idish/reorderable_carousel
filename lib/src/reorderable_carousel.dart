@@ -113,6 +113,7 @@ class _ReorderableCarouselState extends State<ReorderableCarousel> {
   @override
   void initState() {
     super.initState();
+    print("init state contoller set data");
     _controller.setData(_itemMaxWidth, _iconSize, widget.scrollToDuration,
         widget.scrollToCurve, _updateSelectedIndex, dataKeys);
   }
@@ -132,7 +133,7 @@ class _ReorderableCarouselState extends State<ReorderableCarousel> {
           _itemMaxWidth = width;
           // _startingOffset = (_itemMaxWidth / 2);
           // _endingOffset = max(0, _startingOffset - _iconSize);
-
+          print("builder contoller set data");
           _controller.setData(_itemMaxWidth, _iconSize, widget.scrollToDuration,
               widget.scrollToCurve, _updateSelectedIndex, dataKeys);
           // whenever the size of this widget changes, we'll rescroll to center
